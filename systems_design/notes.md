@@ -161,6 +161,9 @@ or for large inputs.
 
 ### Relational Database Management Systems (RDBMS)
 * Data is organized in tables (example: SQL)
+    * Each data item is a row in the table, each of which contains multiple columns.
+        * Rows in the same table have the same columns
+    * Each column must contain the same type of value (defined by the schema)
 * Transactions satisfy ACID properties:
     * Atomicity - transactions are atomic (either the full transaction occurs or nothing occurs)
     * Consistency - database invariants are met before and after each transaction.
@@ -201,14 +204,26 @@ or for large inputs.
 * Allows for O(1) reads and writes, and is useful for rapidly changing data. But more complex operations (like joins) will need to be done in application layer.
 * Only supports get and put operations
 * Example: Redis
+
     * Redis is an in-memory key value store. Thus it can only store small data that needs to be accessed quickly.
     * Persistence - since memory is volatile, Redis must save the data somewhere so that it still exists when the server is shut down:
         * RDB - copy all data to an RDB in every interval.
         * AOF (append-only file) logging - expensive because requires lots of storage and disk accesses.
         * SAVE command - creates an RDB snapshot.
     * Replication - uses master-slave replication. Slaves can be configured to write data to persistent memory to save time for master.
+        * Can be configured to have high availability or high consitency (but not both obviously)
     * Sharding - data can be sharded across many computers, each of which can have a master-slave replication scheme with other computers.
+        * Redis uses hash slots or virtual nodes, together with consistent hashing - partition hash space into virtual nodes, and each node is responsible for some number of virtual nodes.
 * Example: Memcache
+    * Memcache is implemented like a hash map, and all operations are O(1).
+    * Memcache memory is allocated at the start (the user specifies how much to use), uses LRU to evict data.
+    * Memcache uses its own memory (instead of malloc and free) to avoid memory fragmentation after many rights/moving. This memory allocation is called slabs.
+        * The memory is divided into pages of 1mb each (also the size of the largest thing that can be stored). There are slab classes of various sizes.
+        * Each slab class represents how a page will be partitioned (into chunks of equal size).
+        * Each slab class gets one page at the start.
+        * New objects are written to the smallest chunk that can take it. When there are no available chunks for a slab class, a new page can be assigned.
+        * If all pages are used up, LRU is used. There is an LRU for each slab class.
+    * Memcache will automatically use multiple servers through consistent hashing (sharding).
 
     
 
@@ -216,10 +231,142 @@ or for large inputs.
 #### Document stores
 * A key value store that restricts values to structured formats like JSON documents.
     * Allows for fetching parts of a document.
+    * Documents are often grouped together by tags, metadata, directories, etc.
 * Example: MongoDB
 * Example: CouchDB
-    * 
+    * Uses sharding and consistent hashing to cluster servers. There are multiple shards and multiple servers per shard, both of which are specified by the user.
+    * When updating database, the server will wait until half the servers for that shard return.
+    * Not guranteed to be consistent, and may return results before what occurred.
+* Example: Elasticsearch
+    * Elasticsearch is a document store that allows for fast searching performance when searching with strings within documents.
+    * Elasticsearch uses inverted indexes - maps words within documents to the sets of documents that these words are in. The keys (words) are sorted for quick searching.
+        * Also stores indexes for reverses of words and other processed words for quick searching of suffixes, prefixes, etc. Essentially inverted index allows for searching of prefixes, so we have to find tricks to make everything a prefix problem.
+    * Index changes from documents are first stored in memory. New document additions are buffered in memory and eventually the entire index is flushed to disk.
+        * Updates are processed as a deletion and then an addition.
+        * Each file is immutable. Deletes are added to a separate file and processed while searching.
+        * Each flush of documents create a new index segments.
+    * Lucene indexes (a part of a whole elasticsearch index) are spread across multiple segments called index segments, which are spread across multiple files on disk.
+        * Searches are performed across all segments and then results are merged.
+        * When there are too many segments, the segments themselves can be merged (and deleted documents will be actually removed).
+    * Elasticsearch indexes are spread across shards, which individually are lucene indexes and can have multiple replicas.
+        * Searches are conducted over all shards.
+        * Documents are routed to shards via round robin by defaulted, but this can be customized.
+    * Transactions (document additions) are logged in persistent storage in case of a crash.
+
 
 #### Wide-Column stores
 * Multi-level (often 2 level) map.
-* Allows for sparse data to be stored in less space.
+* Allows for sparse data to be stored in less space. Offers high availability and consistency, useful for very large datasets.
+* Example: Google's BigTable
+    * Data is stored in tables, which can be accessed by a row key, column key, and for each cell there are multiple values corresponding to different timestamps.
+    * Data for each column is stored contiguously, in order of row key, so locality of row keys can be utilized.
+    * Columns are grouped into column families. Usually there are only a few column families, but each family could have a lot of columns.
+    * Data for each table is split across row key ranges into tablets, which are sharded across servers.
+    * Each bigtable instance has one master server, which assigns tablets to tablet servers and does garbage collection and load balancing.
+    * Each tablet server is responsible for serving reads/writes to that tablet (clients usually don't communicate with master, but instead talk directly to tablet servers). 
+* Example: Apache's HBase
+
+* Example: Facebook's Cassandra
+
+#### Graph Databases
+* Each node represents a data record and each edge is a relationship between nodes.
+
+
+#### SQL vs NoSQL
+* Advantages of SQL:
+    * Joins are easier to do, but slower if data is replicated or denormalized in NoSQL
+    * Data is organized in a schema and enforces the schema
+    * Transactions are ACID
+* Disadvantages of SQL:
+    * Hard to scale to multiple servers while still maintaining ACID.
+    * Data has to fit in a predefined structure - can lead to sparse data.
+    * Relational database doesn't work with large files like images or videos or documents.
+* Example data suited for NoSQL:
+    * log data or clickstream data.
+    * Temporary data like shopping carts.
+
+## Caches
+* Caches store data (temporarily) in a more accessible place than databases, so that the data can be served quickly.
+* Examples:
+    * CDN's are caches that often serve static web page data.
+    * On a web server, requests can be cached by both the client and server.
+    * Databases usually have a cache
+    * Redis and Memcached are key-value stores that can be used as cache in the application level. (The data is held in RAM so it is fast to access)
+
+* Cache read update types:
+    * Cache-aside (look-aside cache)
+        * The cache is not connected to storage and cacheing is handled by the client/application.
+        * The application first looks at the cache to see if the data is there. If not, it looks in the storage and gets the data, then updates the cache.
+        * Cache staleness determined by TTL, or by write through
+        * Problems: Long latency because each cache miss results in three RPC's. But the system is resistant to cache failures.
+    * Read-through
+        * Cache is connected to a database. When there is a miss, the cache will read from the database and store in cache.
+    * Refresh-ahead
+        * The cache will automatically refresh data from the DB before TTL expires.
+        * Performance depends on whether the same items are needed multiple times in the cache (no point in refreshing stuff that isn't needed).
+
+* Cache write update types:
+    * Write-through
+        * The application will always read and write directly to cache.
+        * On a write, the cache will synchronously propogate the data to the database, and return after the db write is done.
+        * Problems: Writes are slow (but reads are fast)
+    * Write-behind (write-back)
+        * Same as write through except writes are done asynchronously to the database.
+        * This could be done through a task queue.
+        * Problems - there could be incoonsistent data if the cache returns and then dies.
+    * Write-around
+        * Data is written directly to the database, and not the cache.
+
+## Asynchronism
+* Refers to reducing request times by doing expensive operations either before or after requests.
+
+* Message Queues
+    * Used to receive, hold, and deliver messages which can then signal a work to do some job.
+    * For example, when a tweet is posted, the tweet can be put on a message queue, which can be handled by some worker that puts the tweet in a database.
+    * Queues require a message broker to assign queue items to workers. This is to prevent race conditions when workers read directly from the queue. This is done specifically by "Task Queues", like Celery.
+    * Examples: Redis Queue, RabbitMQ, Amazon SQS, celery
+
+
+* Back Pressure - 
+    * Little's Law - states that the average number of items in the queue (or in any process) is equal to the arrival rate (items/second) times the average length of processing for each item (seconds).
+    * We can make sure queues maintain a maximum latency by bounding the size of queues and reject new tasks when the threshold is exceeded.
+        * This is called back pressure.
+        * Threshold is determined using Little's law, based on the time to process each task, the number of threads, and the max latency desired.
+    * Without backpressure, the queue can get too large and suck away resources like RAM from other tasks, causing the system to crash (out of memory error).
+
+## Communication
+
+* Interconnection layers (OSI 7 layer  mode) from high to low:
+    * Application layer - Actual client-server interactions for sending and receiving data.
+    * Presentation layer - encryption and compression of data, translates between user readable data and network readable data.
+    * Session layer - determines the ports used for sending data so that the right application gets it.
+    * Transport layer - TCP or UDP, the protocol for sending the message.
+    * Network layer - Determines the route the data is sent rhough
+    * Data link layer and Physical layer - transfers data bits through the cable/wireless.
+
+### HTTP (Hypertext transfer protocol)
+* Used at the application layer and relies on underlying network protocols like TCP or UDP.
+* Method for transporting data between client and server. Clients issue requests and servers issue responses.
+* Each request consists of a verb and endpoint. Verbs consists of GET (read), POST (create), PUT (update), PATCH (update), DELETE, and more.
+* Response includes the desired data as well as status information.
+
+### TCP and UDP
+* TCP - transmission control protocol
+    * TCP is connection based (a connection is formed between two machines).
+    * TCP is reliable - all data is guranteed to arrive at the other end and in the same order it was written.
+        * TCP will wait for an ack from the receiving end, and will resend packets if none is received.
+        * Duplicate packets on receiving end are discarded, and out of order packets are resequenced at the end.
+        * Thus TCP is slower than UDP
+    * TCP supports streams and will automatically break up data into packets
+    * 
+
+* UDP - user datagram protocol
+    * UDP does not use a connection between to machines - the receiver will listen on a port and receive packets from any computer.
+    * UDP is unreliable and packets may not be sent in the right order.
+    * UDP is faster than TCP and has lower latency - good for things like fps games
+
+* TCP and UDP shouldn't be mixed because they will affect each other on the network
+    * TCP increases packet loss in UDP
+
+
+### RPC and REST

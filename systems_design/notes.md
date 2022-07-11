@@ -357,16 +357,27 @@ or for large inputs.
         * TCP will wait for an ack from the receiving end, and will resend packets if none is received.
         * Duplicate packets on receiving end are discarded, and out of order packets are resequenced at the end.
         * Thus TCP is slower than UDP
-    * TCP supports streams and will automatically break up data into packets
+    * TCP sends through streams and will automatically break up data into packets
     * 
 
 * UDP - user datagram protocol
     * UDP does not use a connection between to machines - the receiver will listen on a port and receive packets from any computer.
     * UDP is unreliable and packets may not be sent in the right order.
     * UDP is faster than TCP and has lower latency - good for things like fps games
+    * UDP also supports broadcast transmission - it sends to all devices on the subnet
+    * Does not send through streams, will directly send packets individually (datagrams)
 
 * TCP and UDP shouldn't be mixed because they will affect each other on the network
     * TCP increases packet loss in UDP
 
 
 ### RPC and REST
+* RPC and REST are different architectures for API's. Both use the HTTP protocol.
+* RPC (remote procedure call)
+    * A client calls a procedure to be executed on a different server or address space, and the result is returned to the caller.
+    * Usually used for internal communications, as clients need to know the API function names and arguments
+    * Not good for API that needs to be flexible
+* REST (Representational state transfer)
+    * Client get data from a server by accessing a URI, where the server can return some resource. Uses a data model.
+    * Often used for public API's, and is accessed through headers
+    * Not good if API with resources that aren't naturally organized in a hierarchy that fits well in headers.

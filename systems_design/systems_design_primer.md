@@ -376,8 +376,12 @@ or for large inputs.
 * RPC (remote procedure call)
     * A client calls a procedure to be executed on a different server or address space, and the result is returned to the caller.
     * Usually used for internal communications, as clients need to know the API function names and arguments
-    * Not good for API that needs to be flexible
+    * Problems:
+        * Client needs to be fully aware of how the API works
+        * API endpoints and names of functions are often not very descriptive of the full functionality
+        * Modern implementations like SOAP and GRPC fix these issues
 * REST (Representational state transfer)
     * Client get data from a server by accessing a URI, where the server can return some resource. Uses a data model.
+    * Data model is stateless and requests are cacheable
     * Often used for public API's, and is accessed through headers
     * Not good if API with resources that aren't naturally organized in a hierarchy that fits well in headers.

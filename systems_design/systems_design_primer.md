@@ -8,7 +8,7 @@
     * Problem - will eventually reach limit (in terms of money or state of the art).
 
 * **Horizontal Scaling**: Using many instances of the same hardware.
-    * Need to build system to be able to distribute tasks.
+    * Need to build system to be able to sync tasks across the systems consistently.
 
 * Vertical scaling refers to getting **one** "really good" machine, while horizontal scaling refers to building an architecture to support **many** machines. Due to limitations, most systems solutions are for allowing horizontal scaling to work better.
 
@@ -20,19 +20,20 @@
     * Storing this shared state in a central server like the load balancer.
         * **RAID** - replication within a single server. This makes storing all information on a single server (like the load balacncer) more stable.
             * Raid0 - Data is saved by "striping" it across two drives, which makes it faster to write data.
-            * Raid1 - Data is written and copied over two harddrive, so if one dies the data is still there.
+                * Half the data is stored on one drive, and the other half is stored in the other.
+            * Raid1 - Data is written and copied over two drives, so if one dies the data is still there.
             * Raid10 - Combines Raid0 and Raid10 using 4 hard drives
             * Raid5 and Raid6 are middle grounds between Raid0/1 and Raid10.
 
     * MySQL databases for storing data in a centralized place
-        * But is not able to store information on a specific session
+        * But is not able to store information on a specific session (since the session contains cached data local to the web server)
 
     * The cookies itself can contain information like the server it was originally from. Specifically, it could contain a random number which the load balancer can map to a specific server.
 
 * **Caching**
     * Can cache generated html files (i.e. static webpages) when reads more common than writes.
-        * Downsides - need to store content like headers which is redundant.
-        * Also hard to change the aesthetics of the files without regenerating all files.
+        * Downsides - need to store content like headers which is redundant (same across all files).
+        * Also hard to change the aesthetics of the files without regenerating all files (need to reset all caches).
     * MySQL query cache - database queries are cached so that second time a query is run is faster.
     * Memcache - Software ran on server that caches data in RAM.
         * LRU can be used if cache runs out of memory
@@ -61,8 +62,8 @@
 
 **Part 2 Database**
 * The database now becomes the bottleneck since there is only one database that all the servers access.
-* One solution is to use master-slave replication and add more ram to the database. However, this gets expensive as the amount of data increases.
-* Another solution is to use a NoSQL database. 
+* One solution is to use master-slave replication and sharding and add more ram to the database. However, this gets expensive as the amount of data increases.
+* Another solution is to use a NoSQL database.
 
 **Part 3 Cache**
 * You can now store lots of data but the database is slow. In-memory caches like Redis and Memcached are key-value stores that act as buffers between database and application and is much faster to access than the db. There are two types of caching patterns:
@@ -104,13 +105,14 @@ or for large inputs.
 * Strong consistency - Reads will always see a write after the write returns (i.e. the server acks)
 
 ## Availability Patterns
-* Master-slave or master-master servers - one server (or two) serve all the requests, and there is backups that can become active if the master fails.
+* Master-slave or master-master servers (fail-over) - one server (or two) serve all the requests, and there is backups that can become active if the master fails.
+* Replication - also uses master-master or master-slave, but for data.
 
 
 ## Domain Name System (DNS)
 * Service that translates domain names (like google.com) to ip addresses of servers that can be sent requests.
     * DNS is hierarchical, with authoritative servers at the top level and at the lower levels, servers that cache results from the top-level servers.
-    * There are services for routing traffic, such as round robin, latency-based, and geography based. I.e. load balancing Algorithms
+    * There are services (like CloudFlare) for routing traffic, such as round robin, latency-based, and geography based. I.e. load balancing Algorithms
 
 
 * 5 common load-balancing algorithms:
@@ -213,7 +215,7 @@ or for large inputs.
     * Replication - uses master-slave replication. Slaves can be configured to write data to persistent memory to save time for master.
         * Can be configured to have high availability or high consitency (but not both obviously)
     * Sharding - data can be sharded across many computers, each of which can have a master-slave replication scheme with other computers.
-        * Redis uses hash slots or virtual nodes, together with consistent hashing - partition hash space into virtual nodes, and each node is responsible for some number of virtual nodes.
+        * Redis uses hash slots (also called virtual nodes), together with consistent hashing - partition hash space into virtual nodes, and each node is responsible for some number of virtual nodes.
 * Example: Memcache
     * Memcache is implemented like a hash map, and all operations are O(1).
     * Memcache memory is allocated at the start (the user specifies how much to use), uses LRU to evict data.
@@ -225,7 +227,6 @@ or for large inputs.
         * If all pages are used up, LRU is used. There is an LRU for each slab class.
     * Memcache will automatically use multiple servers through consistent hashing (sharding).
 
-    
 
 
 #### Document stores
@@ -274,7 +275,7 @@ or for large inputs.
 
 #### SQL vs NoSQL
 * Advantages of SQL:
-    * Joins are easier to do, but slower if data is replicated or denormalized in NoSQL
+    * Joins are easier to do (managed by the database itself and not the application), but slower if data is replicated or denormalized.
     * Data is organized in a schema and enforces the schema
     * Transactions are ACID
 * Disadvantages of SQL:
@@ -377,11 +378,11 @@ or for large inputs.
     * A client calls a procedure to be executed on a different server or address space, and the result is returned to the caller.
     * Usually used for internal communications, as clients need to know the API function names and arguments
     * Problems:
-        * Client needs to be fully aware of how the API works
+        * Client needs to be fully aware of how the API works and be written in same language
         * API endpoints and names of functions are often not very descriptive of the full functionality
         * Modern implementations like SOAP and GRPC fix these issues
 * REST (Representational state transfer)
     * Client get data from a server by accessing a URI, where the server can return some resource. Uses a data model.
-    * Data model is stateless and requests are cacheable
+    * Data model is stateless and requests are cacheable (you get the same result if you make the same request twice if nothing changes on the server side)
     * Often used for public API's, and is accessed through headers
     * Not good if API with resources that aren't naturally organized in a hierarchy that fits well in headers.

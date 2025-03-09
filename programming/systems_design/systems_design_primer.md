@@ -1,4 +1,5 @@
 # Systems Design Notes
+Based on resources [here](https://github.com/donnemartin/system-design-primer).
 
 ## Harvard CS75 Video on Scalability
 

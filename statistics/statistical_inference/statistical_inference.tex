@@ -1,0 +1,198 @@
+
+\documentclass[12pt, letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage[]{amsfonts}
+\usepackage{mathtools}
+\usepackage{tikz-cd}
+\usepackage{float}
+\usepackage{graphicx}
+
+\usepackage[]{import}
+\usepackage{pdfpages}
+\usepackage{xifthen}
+\usepackage{transparent}
+\usepackage[]{hyperref}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\F}{\mathbb{F}}
+
+\theoremstyle{definition}
+\newtheorem*{defn}{Definition}
+\newtheorem*{prop}{Proposition}
+\newtheorem*{thm}{Theorem}
+\newtheorem*{cor}{Corollary}
+\newtheorem*{lemma}{Lemma}
+\newtheorem*{rmk}{Remark}
+
+\theoremstyle{remark}
+\newtheorem*{note}{Note}
+\newtheorem*{exer}{Exercise}
+\newtheorem*{eg}{Example(s)}
+\newtheorem*{noeg}{Non-Example(s)}
+
+\renewcommand\qedsymbol{$\blacksquare$}
+
+
+\title{Statistical Inference Notes \\
+[1ex] \large Based on First 5 Chapters of \textit{Statistical Inference} by Casella and Berger }
+
+\author{Runxuan Jiang}
+\date{Spring 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Probability Theory}
+
+We start with some axioms:
+\begin{defn}[Probability Function (Kolmogorov axioms)]
+    Given a sample space \(S\) and an associated sigma algebra \(\mathcal{B}\), a \textit{probability function} is a function \(P\) with domain \(\mathcal{B}\) that satisfies
+
+    \begin{enumerate}
+        \item \(P(A) \geq 0 \; \forall A \in \mathcal{B}\)
+        \item \(P(S) = 1\)
+        \item if \(A_1, A_2, \ldots \in \mathcal{B}\) pairwise disjoint, then \(P(\cup_{i-1}^{\infty}A_i) = \sum_{i=1}^{\infty} P(A_i)\).
+    \end{enumerate}
+
+    
+\end{defn}
+
+\begin{thm}[Inclusion/Exclusion Principle]
+    \(P(A \cup B) = P(A) + P(B) - P(A \cap B)\)
+    
+\end{thm}
+
+\begin{prop}[Counting arrangements of size \(r\) of \(n\) objects]
+    \hfill
+
+    \begin{tabular}{ |c||c|c| }
+        \hline
+         & with replacement & without replacement \\
+        \hline \hline
+        ordered & \(\frac{n!}{(n-r)!}\) & \(n^r\) \\
+        \hline
+        not ordered & \(n \choose r\) & \(n+r-1 \choose r\) \\
+        \hline
+    \end{tabular}
+
+    For not ordered, with replacement, can think of dividing the \(n\) items into \(n\) buckets, and taking the edges of the buckets (not including the edge ones), of which there are \(n-1\). Then take the \(r\) items to place. Out of the \(n-1+r\) items, want to choose which of them are bucket edges, and which are the actual items placed.
+\end{prop}
+
+\begin{prop}[Counting rdered arrangements with duplicates]
+    We want to count the number of ordered arrangements with \(k\) items, but there are \(m\) elements that are repeated
+    \(k_1, \ldots, k_m\) times. The way to count this is
+    \[\frac{k!}{k_1! \times \ldots \times k_m!}.\]
+    
+\end{prop}
+
+\begin{defn}[Conditional Probability]
+    \[P(A|B) = \frac{P(A \cap B)}{P(B)}\]
+\end{defn}
+
+\begin{thm}[Bayes' Rule]
+    \[P(A|B) = P(B|A) \frac{P(A)}{P(B)}\]
+    
+    Let \(A_1, A_2, \ldots  \) be a partition of the sample space, and let \(B\) be any set. Then
+    \[P(A_i | B) = \frac{P(B|A_i)P(A_i)}{\sum_{j=1}^{\infty} P(B|A_j)P(A_j)}\]
+\end{thm}
+
+\begin{defn}[Statistical Independence]
+    \(A\) and \(B\) are \textit{independent} if 
+    \[P(A \cap B) = P(A) \times P(B).\]
+\end{defn}
+
+\begin{defn}[Mutual Independence]
+    A collection of events \(A_1, \ldots A_n\) are \textit{mutually independent} if for any subcollection \(A_{i_1}, \ldots a_{i_k}\) we have
+    \[P(\bigcap_{j=1}^k A_{i_j}) = \prod_{j=1}^k P(A_{i_j}).\]
+\end{defn}
+
+\begin{defn}[Random Variable]
+    A \textit{random variable} is a function from a sample space \(S\) into the real numbers.
+
+    For example, if \(S = \{s_1, \ldots, s_n\}\) is a discrete sample space, then we can define a probability function for the random variable \(X: S \rightarrow \mathcal{R}\)
+    \[P(X=x_i) = P(\{s_j \in S : X(s_j) = x_i\}).\]
+
+    Similarly, if \(S\) is continuous, then we can define
+    \[P(X \in A) = P(\{s \in S : X(s) \in A\}).\]
+\end{defn}
+
+\begin{defn}[Cumulative Distribution Function]
+    The \textit{cumulative distribution function (cdf)} of a random variable \(X\), denoted by \(F_X(x)\), is defined by
+    \[F_X(x) = P_X(X \leq x).\]
+\end{defn}
+
+\begin{thm}[]
+    The function \(F(x)\) is a cdf if and only if the following three conditions hold:
+    \begin{enumerate}
+        \item \(\lim_{x \rightarrow - \infty} F(X) = 0, \; lim_{x \rightarrow \infty} F(x) = 1\)
+        \item \(F(x)\) is nondecreasing (in terms of \(x\))
+        \item \(F(x)\) is right-continuous: \(\forall x_0, lim_{x \downarrow x_0} F(x) = F(x_0)\)
+    \end{enumerate}
+    
+\end{thm}
+
+\begin{eg}[Geometric cdf]
+    Let \(p\) be the probability of flipping a coin and getting a head, and let \(X\) be the number of tosses required to get a head. Then
+
+    \[P(X = x) = (1-p)^{x-1}p\]
+
+    \[F_X(x) = P(X \leq x) = \sum_{i = 1}^{x} (1-p)^{i-1}p = \frac{1 - (1-p)^x}{1-(1-p)}p = 1(1-p)^x.\]
+\end{eg}
+
+\begin{defn}[Continuous RV]
+    A random variable \(X\) is \textit{continuous} if \(F_X(x)\) is a continuous function of \(x\). \(X\) is \textit{discrete} if \(F_X(x)\) is a step function of \(x\).
+\end{defn}
+
+\begin{thm}[Identically distributed random variables]
+    Two random variables \(X\) and \(Y\) are \textit{identically distributed} if
+    \[\forall A \in \mathcal{B}, P(X \in A) = P(Y \in A).\]
+
+    They are identically distributed if and only if \(F_X(x) = F_Y(x) \; \forall x.\)
+\end{thm}
+
+\begin{defn}[Probability Mass and Density Functions]
+    For a discrete random variable \(X\), the \textit{probability mass function (pmf)} is given by
+    \[f_X(x) = P(X=x).\]
+
+    For a continuous random variable \(Y\)), the \textit{probability density function (pdf)} \(f_Y(x)\) is given by the function that satisifes
+    \[F_Y(x) = \int_{- \infty}^{x} f_Y(t) dt.\]
+
+    We say that \(Y\) has a distribution given by \(F_Y(x)\) as \(X \sim F_Y(x)\). Similarly, can write \(Y \sim f_Y(x)\).
+\end{defn}
+
+\begin{eg}[Geometric probabilities]
+    In the geometric cdf example above, the pmf would be
+    \[f_X(x) = p(X = x) = \begin{cases}
+        (1-p)^{x-1}p & \text{for } x=1,2,\ldots \\
+        0 & \text{otherwise}
+    \end{cases}.\]
+\end{eg}
+
+\begin{thm}[]
+    A function \(f_X(x)\) is a pdf (or pmf) of a random variable if and only if
+    \begin{enumerate}
+        \item \(f_X(x) \geq 0 \; \forall x\)
+        \item \(\sum_{x}f_X(x) = 1\) (for pmf) or \(\int_{- \infty}^{ \infty} f_X(x) dx = 1\) (for pdf).
+    \end{enumerate}
+    
+\end{thm}
+
+
+\section{Transformation and Expectations}
+
+
+
+
+
+
+
+\end{document}

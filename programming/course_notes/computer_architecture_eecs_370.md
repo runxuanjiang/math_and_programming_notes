@@ -1,18 +1,11 @@
 # EECS 370 - Computer Architecture
 
-## Important Concepts
+## How do computers do math?
 * Two's Complement Binary Representation
     * Way of representing numbers in binary where the first bit in an n-bit number represents -2^(n-1) and all the other bits are treated normally.
     * Can represent numbers from -2^(n-1) to 2^(n-1) - 1.
     * Two's complement number can be negated by flipping all the bits and adding 1.
     * For extending a number to more bits, add all 0's in front if the number is positive, and all 1's if the number is negative.
-* Memory layout of variables and classes/structs
-    * In memory, each variable is aligned based on its size:
-        * Char is byte aligned, short is half-word aligned (i.e. least significant bit of address is 0), int is word aligned (last 2 bits of address is 0)
-        * So if each address is 1 byte, then Char is 1 byte, short is 2 bytes, int is 4 bytes, etc.
-            * An n-byte variable has to be at a an address A such that A%n == 0.
-        * Structs are aligned based on its largest field. Size of the overall struct is a multiple of the largest field.
-        * So it makes sense to put largest things first in structs.
 * Floating point arithmetic
     * Represent real numbers in binary by using scientific notation. Includes the following components/bits:
         * Sign bit (0 for positive, 1 is negative).
@@ -30,78 +23,101 @@
     
 ## ISAs and Assembly
 * Basic Architecture Concepts (Von Neumann Architecture)
-    * Programs (written in C++ for example) are compiled into assembly (each command corresponds to a machine code operation, 1-1 correspondence) which are translated into machine code
-    * Data and instructions (code) are both stored in memory
-        * Instructions stored sequentially
-        * Program Counter (PC) points to where in instructions
+    * Programs (written in C++ for example) are compiled into assembly (each command corresponds to a machine code operation, 1-1 correspondence) which are translated into machine code. The **instruction set architecture (ISA)** defines the syntax of the machine code, or the mapping of assembly instructions to machine code.
+    * Von Neumann architecture - refers to the fact that data and instructions (programs) are in the same memory. Instructions are stored sequentially in memory and referenced using a program counter (PC).
         * Data can be stored in memory (RAM) and moved to registers (on CPU) which is used for doing actual operations.
-    * RISC vs CISC - define machine language operations
-        * RISC (Reduced Instruction Set) - lowest level of instructions (i.e., the base ISA) is simple, all instructions same length
+    * RISC vs CISC are two designs/philosophies for encoding ISA instructions.
+        * RISC (Reduced Instruction Set) - only define lowest level of instructions.
+            * All instructions have same length
+            * More complex instructions use multiple commands
+            * Example: ARM
         * CISC (Complex Instruction Set Computer) - instructions are more complex and can have different lengths, make machine language similar to high-level language
-    * Encoding assembly
-        * Each instruction is a certain number of bits, which is partitioned into the opcode (defines the operation, such as add, subtract, etc.), and the remaining bits define the input/destination registers.
+            * Example: x86
+    * Encoding assembly code to machine code
+        * Each instruction is a certain number of bits, which is partitioned into the opcode (defines the operation, such as add, subtract, etc.), and the remaining bits define the source/destination registers.
         * There are special purpose registers, such as stack pointer, 0 value register, etc.
-    * Memory architecture - see ![image](memory_architecture.png)
+        * Note that assembly is generally not portable between different machines.
+
+* Basic Storage Architecture Concepts
+    * Data can be referenced in the following ways:
+        * Immediate Values (literals) - small constant values can be placed directly in instructions, such as offset for incrementing a pointer.
+        * Register Addressing - reference an address in the CPU registers (like indexing an array - only supports direct addressing).
+            * Fast because register files are small and closest to CPU.
+            * Architectures usually have special purpose registers, for stack pointers, status registers, program counters, etc.
+        * Memory storage (RAM) - large array of storage referenced by memory addresses
+            * Memory architecture - see ![image](images/memory_architecture.png)
+            * Many addressing modes (see below)
+        * Memory mapped I/O - I/O devices (keyboard, GPU, network) will look like memory to the processor/OS.
+    * Addressing modes - defines how data from memory (RAM) is accessed by the CPU
+        * Direct addressing - get the memory location directly. Like array indexing: M[1500].
+            * Not practical because each instruction usually only have a limited number of bits (3-5) for storing locations.
+            * Used for addressing locations that don't change (like global/static variables).
+        * Indirect addressing - get the memory location which is stored at another memory location: M[M[1500]]
+        * Register Indirect - get the memory location which is stored in a register: M[r2]
+        * Base + displacement - base memory address is stored in memory, displacement is given in instruction: M[r2 + 1000]
+            * Most commonly used
+            * Useful for accessing class objects since we can calculate object sizes and know where each member is
+        * PC-relative addressing - same as base_displacement except PC register is the base
+            * Useful for branch instructions
 
 * Instruction Set Architecture (ISA)
     * Refers to the most fundamental level of instructions able to be computed by the processor.
     * Instructions, including the type of instruction, input registers, output registers, and literal values, are encoded into a string of bits.
         * For example, ARMV8 has 32 bit instructions. But each register in ARM stores 64 bits.
-        * Instructions bits correspond to numbers in machine code.
-        * Types of instructions include:
+        * Types of instructions in ARM include:
             * Arithmetic (add, subtract, multiply)
             * Data transfer - load and store data between memory and registers
-            * Logical operators
+            * Logical operators (and, or, xor, nor)
             * Branches and conditional branches (jump to different places in code)
     * Data loading
         * In ARM, each data address contains 1 byte (8 bits) of data.
         * Since each register is 64 bits (8 bytes), loading data that is smaller than this size will cause the data to be sign-extended.
         * Big vs. Little Endian - refers to the order in which bits are loaded to the register
-            * Little Endian - The earlier bits map to least significant bits in the register (reverse order in terms of memory address and reading bits left to right).
+            * Little Endian - The earlier bits (in terms of memory address) map to least significant bits in the register (reverse order in terms of memory address and reading bits left to right).
             * Big Endian - The earlier bits map to the most significant bits in the register (same order in terms of memory address).
 
+## Translating C/C++ code to assembly
 
-* Addressing modes - defines how memory is accessed by the CPU
-    * Direct addressing - get the memory location directly. Like array indexing: M[1500].
-        * Not useful because each instruction usually only have a limited number of bits (3-5) for storing locations.
-    * Indirect addressing - get the memory location which is stored at another memory location: M[M[1500]]
-    * Register Indirect - get the memory location which is stored in a register
-    * Base + displacement - base memory address is stored in memory, displacement is given in instruction
-        * Useful for accessing class objects since we can calculate object sizes and know where each member is
-    * PC-relative addressing - same as base_displacement except PC register is the base
+* Memory layout of variables and classes/structs
+    * Modern ISA's require data to be aligned based on it's size - an N-byte variable must start at an address A, such that A%N == 0. This helps with CPU efficiency and performance.
+        * Char is byte aligned, short is half-word aligned (2 bytes usually), int is word aligned (4 bytes usually)
+        * So if each address is 1 byte, then Char is 1 byte, short is 2 bytes, int is 4 bytes, etc.
+        * Structs are aligned based on its largest field. Size of the overall struct is a multiple of the largest field.
+        * So it makes sense to put largest things first in structs.
 
-* Function calls - how the processor manages function calls (high level function calls)
-    * Passing in parameters
-        * Parameters are stored in registers (if they fit) and the rest are stored in memory, in the **call stack**.
-        * Call Stack
-            * Section of memory used to store data for simulating function calls, including:
-                * function parameters (that are not saved in registers)
-                * Local variables
-                * Return address and temporary storage when registers run out of space.
-            * Sections of the call stack are called **stack frames**. They are allocated when functions are called, and deallocated when the function returns.
-        * ARM memory map
-            * Top is dynamic data, then static data, and finally text.
-                * Dynamic data - top is stack, which contains stack frames.
-                    * More stack frames are added downwards in the stack as functions are called
-                    * Heap is at the bottom, where dynamically allocated data is stored (i.e. using malloc() and free())
-                * Static - used for storing global variables
-                * Text - used for storing instructions/code.
-        * Calling Convention - How to make sure register data is consistent during function calls.
-            * When a function calls another function, need to make sure that data stored in registers can be gotten back if the called function rewrites those registers.
-                * The data will be saved in the stack frame.
-            * Caller-save - Before calling a function, the higher-level function will save the registers used by its data that it will need to access after that function.
-                * Downside is that it may save registers that won't be touched by the called function.
-            * Callee-save - Before the function runs, it will save all the registers that it will use.
-                * Downside is that it will save registers that weren't used by the higher level function.
-            * In reality, both caller-save and callee-save are used. Specifically, some registers are set as caller-save registers, and some are set as callee-save. When data is stored in registers (or will be used by a function) they will be saved according to the type of register it is.
-        * Stack frames
-            * Each stack frame has a frame pointer, which points to the start of each stack frame.
-            * Stack frames are connected by a linked list of frame pointers
+* Function calls - how the processor manages function calls
+    * Parameters are stored in registers (if they fit) and the rest are stored in memory, in the **call stack**.
+    * Call Stack
+        * Section of memory (RAM) used to store data for simulating function calls, including:
+            * function parameters (that are not saved in registers)
+            * Local variables
+            * Return address and temporary storage when registers run out of space.
+        * Sections of the call stack are called **stack frames**. They are allocated when functions are called, and deallocated when the function returns.
+    * ARM (Linux) memory map
+        * Top is dynamic data, then static data, and finally text.
+            * Dynamic data - top is stack, which contains stack frames.
+                * More stack frames are added downwards in the stack as functions are called.
+                * Stack shrinks as functions return
+                * Heap is at the bottom, where dynamically allocated data is stored (i.e. using malloc() and free())
+            * Static - used for storing global variables
+            * Text - used for storing instructions/code.
+    * Calling Convention - How to make sure register data is consistent during function calls.
+        * When a function calls another function, need to make sure that data stored in registers for the original function are still accessible if the called function rewrites those registers.
+            * Solution: save the data to the stack.
+        * Caller-save - Before calling a function, the higher-level function will save the registers used by its data that it will need to access after that function.
+            * Downside is that it may save registers that won't be touched by the called function.
+        * Callee-save - Before the function runs, it will save all the registers that it will use.
+            * Downside is that it will save registers that weren't used by the higher level function.
+        * In reality, both caller-save and callee-save are used. Specifically, some registers are set as caller-save registers, and some are set as callee-save. When data is stored in registers (or will be used by a function) they will be saved according to the type of register it is.
+    * Stack frames
+        * Each stack frame has a frame pointer, which points to the start of each stack frame.
+        * Stack pointer (SP) points to next free memory address in on stack.
+        * Stack frames are connected by a linked list of frame pointers
 
 * Compilers, Linkers, and Assemblers
     * After source code (i.e. C or C++ code) is written, it is compiled, then assembled, then linked, then loaded.
     * Compiler - converts .C file to .s (assembly code) file. This can be done in parallel for each source file.
-    * Assembler - converts assembly code to .o (object) file. Can be done in parallel for each source file.
+    * Assembler - converts assembly code to .o (object) file, which is in linux ELF (executable and linkable) format. Can be done in parallel for each source file.
         * Object files contain machine code instructions and other data:
             * Header - contains sizes of each of the other sections of the file.
             * Text - machine code instructions
@@ -110,8 +126,63 @@
             * Relocation table - identifies instructions that use addresses of variables in symbol table, so that the linker can replace the address with the new updated address after linking.
     * Linker - combines multiple object files into an executable (i.e., a.out)
         * Takes text segments and data segments and combines them.
-        * Resolvse references to variables (replaces addresses in relocation table)
-    * Loader - used to run the executable. Loads the file code into memory and asks the OS to schedule it as a new process.
+        * Resolves references to variables (replaces addresses in relocation table).
+    * Loader - used to run the executable. Loads the executable into memory and asks the OS to schedule it as a new process.
+        * Creates new address space for the program and copies instructions/data to new address space.
+        * Initializes registers (PC and SP)
+
+## Executing assembly
+
+* Pipelining in hardware
+    * Each line of machine code needs to be executed by the hardware. This is done most efficiently by using pipelining.
+    * Execution time (for an application) is measured by total instructions executed * clock cycles per instruction (CPI) * clock period.
+    * Single cycle processor - each assembly line is 1 cycle of the processor.
+        * Each cycle must go through expensive calculations (Mux, ALU, memory access, etc.) even if not needed for the instruction.
+        * CPI is low (1), but clock period is high (8ns for example).
+    * Multi cycle processor - each assembly line can take multiple cycles to complete, depending on the instruction.
+        * Simpler instructions take less cycles than longer instructions.
+        * However, the entire instruction must complete before a new instruction is started.
+        * CPI is higher (4.25), and clock period is lower (2ns).
+    * Multi cycle processor with pipelining - overlap execution of instructions.
+        * All instructions follow similar order of cycles needed:
+            * fetch instruction
+            * decode instruction
+            * ALU (if needed)
+            * memory lookup (if needed)
+            * write result to register (if needed)
+        * Idea is to start processing the next instruction before the first instruction is complete.
+        * Leads to low CPI (~1) while maintaining low clock period (2ns).
+        * see ![image](images/pipeline.png)
+
+* Hazards in pipelining
+    * Data hazards - an instruction might alter data that is needed by an instruction that is immediately following it. Since writing the new data to register is done on the last stage, the next instruction may pick up on stale data.
+        * Naive Solution: add no-ops in the assembly code to wait out data hazards. This is not practical since it increases the size of the program significantly and it's not portable to new hardware (that may have longer pipelines).
+        * Solution 1: detect and stall - hardware detects for data hazards and injects no-ops into the pipelien.
+        * Solution 2: detect and forward - hardware routes new data to where it is needed in following stages. This is fast but doesn't work for all instructions (like loads/stores from memory), in which case stalling is needed.
+    * Control hazards - program counter does not always increase by 1. Need to handle jumps and if statements (branches).
+        * Solution: branch prediction - try to predict where the program counter will go to next. If wrong, ignore the output and reload with the correct program counter. Requires the following components:
+            * **Branch Target Buffer (BTB)** - store a cache mapping PC of branches to the destination address for all branches taken. So if prediction is made that branch is taken, knows which command to load.
+            * Branch direction predictor - predicts whether to branch or not.
+                * Always not-taken: ~30-40% accuracy
+                * Always taken: ~60-70% accuracy
+                * Backward taken, forward not taken: predict backward (loop) branches as taken, others not-taken ~65% accuracy
+                * Last time predictor - store a bit per branch corresponding whether it was taken previously. Predict that last behaviour is same as next behaviour. (80% accuracy).
+                * 2-bit saturating counter - similar to last-time predictor but only change prediction if it occurs twice in a row. (up to 90% accuracy).
+                * Further optimizations:
+                    * Keep track of the last N branches (either for same branch or globally across branches). This is stored as N bits in a **Global history register** or **Local history registers**. Then maintain a saturating counter for each possible value (each possible combination of the last n branches), used for predicting the next branch based on the past N branches.
+                    * see ![image](images/two_level_branch_prediction.png)
+                * Modern processors have >96% accuracy.
+    * Interrupts and exceptions
+        * These are handled by branching to an error function that deals with the exception.
+        * For pipelined implementations, need to make sure pipeline is flushed and no commands are executed after the instruction causing the exception.
+
+## Parallelism
+* Greater efficiency (lower CPI) can be achieved using parallelism
+
+* Instruction Level Parallelism (ILP) - have two or more pipelines within the same processor. (ex: superscaler pipeline)
+* Thread Level Parallelism (TLP) - two or more processors (independent pipelines).
+    * This only improve multiple-program performance, not single program.
+* Data level parallelism (DLP) - have two or more execution pipelines (the part that does calculations and write-backs) while sharing the same fetch and control pipeline (the part that does branching and program counter) (ex: SIMD)
 
 ## Memory
 * Cache

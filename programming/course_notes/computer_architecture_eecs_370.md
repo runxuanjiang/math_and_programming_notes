@@ -224,34 +224,38 @@
     * Main idea:
         * Each program has its own "virtual" address space. These address spaces each map to an actual address space ("physical" address) in main memory or disk.
             * The extra memory in disk for storing stuff that doesn't fit in memory is called the **swap partition**.
+            * The mapping is managed by the operating system software and hardware logic.
         * Each program therefore doesn't have to worry about accessing other program's memory.
         * Total amount of memory available does not limit programs (as data can be stored on disk).
     * Page table
         * Each program maintains a page table which maps virtual memory addresses to addresses in DRAM or disk.
         * Page tables are stored in memory and managed by the OS, which knows the physical address of the page table for each program.
-        * Each page contains a chunk of memory (for example 4KB in x86). Each virtual address is thus composed of:
+        * Hardware contains a special page table CPU register, which points to the page table of the current program.
+        * Each page contains a chunk of memory - similar to a block in cache (for example 4KB in x86). Each virtual address is thus composed of:
             * Virtual page number (which maps to some physical page number)
             * Page offset to determine which part of the page to address, which is the same for both the physical and virtual address (but the base is different)
         * If the page is not in DRAM, it is on disk. This is called a **page fault**.
             * DRAM can be used as a cache - on a page fault we evict the lru page (or use other eviction algorithm like policy-clock) and move the new page in.
     * Multi-level page tables
         * Almost no programs will use all the virtual pages, so we won't often need all the entries in the page table itself. The page table itself can be really big, which is a problem.
-        * We can further partition pages in the page table into chunks, and map these chunks from a higher, less granular page table. We then only need to create a lower-level page table for chunks that are used (therefore we save memory for the unused chunks). This is called a **Hierarchical page table**.
+        * We can further partition pages in the page table into chunks, and map these chunks from a higher, less granular page table. We then only need to create a lower-level page table for chunks that are used (therefore we save memory for the unused chunks). This is called a **multi-level page table**.
         * The address will include a 1st level offset (selects the 2nd level page table), 2nd level offset (selects the page in physical memory), and page offset (selects the address in physical memory).
+        * Tradeoff is that more memory accesses are needed to resolve virtual pages.
+        * See ![image](images/hierarchical_page_table.png)
     * Translation look-aside buffer (TLB)
         * Finding an address in a multi-level page table now requires 2 or more page table lookups in memory. This can be slow.
-        * TLB is a fast cache that maps virtual pages (including all offsets except the last page offset) to physical memory.
-    * Caches for disk
-        * To further optimize memory, we can have a data cache between the CPU and memory.
+        * TLB is a fast cache (on CPU) that maps virtual pages (including all offsets except the last page offset) to physical memory locations. It is accessed in the pipeline before the memory lookup (from virtual memory) occurs.
+            * If virtual memory location is in TLB, can avoid memory lookups.
+    * Should CPU data caches (from first bullet in [this section](#memory)) store/map virtual addresses or physical ones?
         * Physically-addressed cache - the cache maps physical addresses to data values.
-            * This is slow because the CPU needs to look up the physical address first using the TLB and page table, but it simplifies obtaining the data.
+            * This is slow because the CPU needs to look up the physical address first using the TLB and page table before using the cache, but it simplifies obtaining the data.
         * Virtually-addressed cache - The cache maps virtual memory addresses to data (comes before TLB and page table)
             * Faster since TLB/page table only needs to be accessed on a cache miss.
             * Requires more complexity for determining which process the virtual page belongs to.
-            * Cache aliasing - when multiple virtual pages (of the same process) map to a single physical page, which causes issues with updates.
-                * Only causes a problem for virtually-addressed cache.
+            * Cache aliasing - when multiple virtual pages (from different processes) map to a single physical page, which causes issues with updates/writes.
+                * Only causes a problem for virtually-addressed cache, since multiple addresses can map to same memory.
         * Virtually indexed physically tagged (VIPT) cache
-            * Data cache now contains both the data and the physical address for each virtual address key.
+            * Data is virtually addressed, but contains both the data and the physical address for each virtual address key.
             * CPU accesses both TLB and the data cache in parallel, which is faster than sequentially as in physically-addressed cache.
             * The physical page from TLB and physical address from data cache are compared to prevent aliasing.
         

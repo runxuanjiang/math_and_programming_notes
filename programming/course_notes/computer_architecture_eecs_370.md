@@ -176,42 +176,46 @@
         * These are handled by branching to an error function that deals with the exception.
         * For pipelined implementations, need to make sure pipeline is flushed and no commands are executed after the instruction causing the exception.
 
-## Parallelism
-* Greater efficiency (lower CPI) can be achieved using parallelism
-
-* Instruction Level Parallelism (ILP) - have two or more pipelines within the same processor. (ex: superscaler pipeline)
-* Thread Level Parallelism (TLP) - two or more processors (independent pipelines).
-    * This only improve multiple-program performance, not single program.
-* Data level parallelism (DLP) - have two or more execution pipelines (the part that does calculations and write-backs) while sharing the same fetch and control pipeline (the part that does branching and program counter) (ex: SIMD)
-
 ## Memory
 * Cache
     * Memory stored in the processor (SRAM) is fast, but expensive. Cheap storage (like SSD, HDD) is slow. However, the processor only needs access to a small amount of memroy at one time, so to make things fast we can cache data on SRAM.
-        * Use SRAM (fastest) for cache (ram attached to CPU).
-        * Use DRAM (not as fast) for main memory (ram sticks).
-        * Use flash/disk (non-volatile, slow) as virtual memory.
-    * Temporal Locality - refers to the idea that a memory location accessed once will likely be accessed again, which is why we should Cache it.
-        * Leads to least recently used (LRU) eviction scheme - when cache is full, evict the item that is least recently used.
+        * Use SRAM (fastest - 2ns access time or faster) for cache (ram attached to CPU).
+        * Use DRAM (not as fast - 60ns access time) for main memory (ram sticks).
+        * Use flash/disk (non-volatile, slow - 250ns access time for flash, 3 milliseconds for disc) as virtual memory (back things up).
+    * The cache can contain data from any part of main memory. Each cache line has:
+        * Tag - holds the memory address
+        * Block - the memory data for that address
     * Content addressable memory
         * On the CPU, the cache is implemented as content addressable memory (CAM), which acts like a hash map and maps memory addresses to data (stored in SRAM).
+    * Temporal Locality - refers to the idea that a memory location accessed once will likely be accessed again, which is why we should Cache it.
+        * Leads to least recently used (LRU) eviction scheme - when cache is full, evict the item that is least recently used.
     * Spatial Locality - refers to the idea that we will likely use memory stored close to where we have previously accessed memory.
         * Block Size - instead of cacheing a single data address for each cache line, we can store a "block" of data representing a contiguous sequence of address data.
-            * Also reduces number of cache keys to keep track of in CAM.
+            * Also reduces number of cache keys to keep track of in CAM and size of tag, reducing overhead.
+            * Most systems use block size of 32-128 bytes.
     * Dealing with writes
-        * Write-through - when writing to cache and there is a hit, write to the cache and the memory.
-        * Write-back - when writing to cache and there is a hit, write only to cache and set a "dirty" bit to true so that when the cache item is evicted it will know to update memory.
-        * Allocate-on-write - when writing and there is a cache miss, update the value and bring it to cache.
-        * No Allocate-on-write - on cache miss, write directly to memory.
-    * Direct-mapped caches
-        * Each line in the cache only maps to a specific section of memory.
-            * Makes searching if item is in cache faster, since only have to search one line.
-            * But evictions are inefficient since something that is not LRU may be evicted.
-    * Set associative caches
-        * Hybrid between direct-mapped cache and fully associative (not direct-mapped) cache.
-        * Data is partitioned into sections, and each section gets some number of cache lines.
-            * If each partition gets only one line, it's a direct-mapped cache.
-            * If there is only one partition, it's a fully associative cache.
-        * n-way set associative cache has n ways (lines) per partition.
+        * Cache hits
+            * Write-through - when writing to cache and there is a hit, write to the cache and the memory.
+            * Write-back - when writing to cache and there is a hit, write only to cache and set a "dirty" bit to true so that when the cache item is evicted it will know to update memory.
+        * Cache miss
+            * Allocate-on-write - when writing and there is a cache miss, update the value and bring it to cache.
+            * No Allocate-on-write - on cache miss, write directly to memory.
+    * Cache associativity
+        * Fully-associative caches - a block in memory can be stored anywhere in the cache.
+            * Tag searches can be expensive because need to look at every cache entry.
+        * Direct-mapped caches
+            * Each line in the cache only maps to a specific section of memory.
+                * Makes searching if item is in cache faster, since only have to search one line.
+                * But evictions are inefficient since something that is not LRU may be evicted.
+        * Set associative caches
+            * Hybrid between direct-mapped cache and fully associative cache.
+            * Data is partitioned into sections, and each section gets some number of cache lines.
+                * If each partition gets only one line, it's a direct-mapped cache.
+                * If there is only one partition, it's a fully associative cache.
+            * n-way set associative cache has n ways (lines) per partition.
+    * Caches work with process components by interfacing with components that do memory accesses.
+        * There is an instruction (I-cache) for instruction lookups in the pipeline.
+        * There is a data cache for data lookups in the pipeline.
 
 * Virtual Memory
     * Solves two main problems with memory:
@@ -251,3 +255,12 @@
             * CPU accesses both TLB and the data cache in parallel, which is faster than sequentially as in physically-addressed cache.
             * The physical page from TLB and physical address from data cache are compared to prevent aliasing.
         
+
+
+## Parallelism
+* Greater efficiency (lower CPI) can be achieved using parallelism
+
+* Instruction Level Parallelism (ILP) - have two or more pipelines within the same processor. (ex: superscaler pipeline)
+* Thread Level Parallelism (TLP) - two or more processors (independent pipelines).
+    * This only improve multiple-program performance, not single program.
+* Data level parallelism (DLP) - have two or more execution pipelines (the part that does calculations and write-backs) while sharing the same fetch and control pipeline (the part that does branching and program counter) (ex: SIMD)

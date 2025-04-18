@@ -264,7 +264,72 @@
 ## Parallelism
 * Greater efficiency (lower CPI) can be achieved using parallelism
 
-* Instruction Level Parallelism (ILP) - have two or more pipelines within the same processor. (ex: superscaler pipeline)
+### Instruction Level Parallelism (ILP)
+
+ILP is when multiple instructions are done in parallel. This is achieved in two main ways:
+* Pipelining - deeper pipeline means that more instructions can overlap with each other.
+* Multiple issue - having multiple pipelines in parallel (can lead to <1 CPI). However, not all instructions can be performed in parallel due to data and logical dependencies.
+    * Static multiple issue processors - rely on the compiler to package instructions and avoid hazards.
+        * Instead of running a single instruction in each clock cycle, the processor runs an **issue packet**, which is a set of instructions to be run in one clock cycle. This id etermined by the compiler.
+        * Hazards are handled by stalling, or relying on compiler to add no-ops. So 
+        * Example: processor with two issues that can run in parallel - one issue handles ALU (math) and branching, the other handles data transfer (loads and stores)
+            * One compiler optimization useful for this is **loop unrolling**. Instead of doing one operation in each loop iteration, explicitly write out multiple:
+
+            ```
+            // instead of
+
+            for (int i = 0; i < 100; ++i) {
+                a[i] += 4;
+            }
+
+            // do the following to parallelize stores and adds
+            for (int i = 0; i < 100; i += 4) {
+                a[i] += 4;
+                a[i+1] += 4;
+                a[i+2] += 4;
+                a[i+3] += 4;
+            }
+
+            ```
+            * In the first case, the addition is followed by a branch, which must be done sequentially.
+            * In the second case, it is followed by a load, which can be done in parallel.
+            * For this to work, the stores for `a[i], a[i+1], a[i+2], a[i+3]` must be stored in different registers, otherwise unnecessary dependencies will be introduced between the writes and loads if the same register is used to load all 4 of these items. The process of introducing separate registers for these loads is called **register renaming**, which is useful for preventing a **name dependence** - when there isn't an actual data dependency but the (same) register used creates a dependency.
+    * Dynamic multiple issue (or superscaler) processors - instructions are issued in order, and hardware determines how many to run in parallel.
+        * Dynamic pipeline scheduling - extends this concept to choose what instructions to execute in parallel while avoiding hazards and stalls.
+        * Includes three main components:
+            * Instruction fetch/decode unit fetches instructions and sends them to a one of several functional units.
+            * Functional units contains buffers for holding the inputs, and run the computation needed once all inputs are in its buffer (in parallel of other functional units).
+                * When result is calculated, the result itself is sent to other functional units that depend on the result.
+                * The result is also sent to the commit unit.
+            * Commit unit buffers results to make sure that results are committed in order of the original instructions.
+            * See ![image](images/dynamically_scheduled_pipeline.png)
+        * Note that the actual execution of instructions in the functional units may not be in the same order as the instructions. This is called **out-of-order execution**.
+        * However, the commits are written in order of the instructions, this is called **in-order commit**. This is useful for tracking exceptions for example.
+
+
+
 * Thread Level Parallelism (TLP) - two or more processors (independent pipelines).
     * This only improve multiple-program performance, not single program.
 * Data level parallelism (DLP) - have two or more execution pipelines (the part that does calculations and write-backs) while sharing the same fetch and control pipeline (the part that does branching and program counter) (ex: SIMD)
+
+### Memory management in multicore processors (cache coherence)
+
+The **cache coherence problem** - when there are multiple processors on the same chip, they have separate caches that reference back to a common, shared physical address space. The problem is how to keep the data across multiple caches in sync.
+
+**Cache Coherence** has three requirements:
+* A write followed by a read from the same processor to the same location always return the latest written value.
+* A write followed by a read from a different processor to the same location returns the newly written value if the read and write are sufficiently separated in time.
+* Write serialization - all processors see writes done (by the same or multiple processors) in the same order. This ensures that eventually all processors will be aware of the "latest" value written.
+
+Caches in a multiprocessor should also provide the following:
+* Migration - data items can be moved to a local cache, reducing latency for accessing that data item.
+* Replication - When shared data is read simultaneously, each cache makes a copy of the data item, reducing latency and contention for the data item.
+
+The most popular way to achieve this and cache coherence is through the **snooping** protocol:
+* In addition of maintaining copies of data items, the cache also tracks a sharing status.
+* Caches monitor, or snoop, on a shared braodcast medium to update the sharing status.
+* Simple snooping protocol: **write invalidate protocol** - on writes, invalidate copies of the item in other caches.
+* There are more complicated protocols, like **MOESI**.
+
+
+
